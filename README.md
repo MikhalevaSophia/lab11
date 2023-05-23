@@ -1,47 +1,76 @@
 ## Laboratory work XI
 
-Устанавливаем ssh сервер, чтобы другие могли подключиться, когда пробросим мой IP в сеть
+Ngrok — это платформа, которая с помощью установленной утилиты, позволяет, организовать удалённый доступ на веб-сервер или какой-то другой сервис, запущенный ПК. Доступ организуется через созданный при запуске ngrok безопасный туннель. ПК, при этом, может находиться за NAT’ом, и не иметь статического IP адреса.
+Совсем не обязательно тащить тестовый проект куда-то ещё, можно показать его заказчику прямо с локальной машины, или, например, с помощью Ngrok можно очень легко расшарить файлы лежащие на ПК.
+Вначале создаем папки:
+$ mkdir install
+$mkdir tmp
+Далее создаем переменные окружения:
+$ export HOME_PREFIX=`pwd`/install
+$ echo $HOME_PREFIX
+$ export USERNAME=`whoami`
+Скачиваем архив
+$ wget https://github.com/libevent/libevent/releases/download/release-2.1.8-stable/libevent-2.1.8-stable.tar.gz
 
-sudo pacman -S openssh
+Разархивируем его
+$ tar -xvzf libevent-2.1.8-stable.tar.gz
 
-Включаем ssh сервер, чтобы он на фоне кртился
+Перемещаемся в папку с ним
+$ cd libevent-2.1.8-stable
 
-sudo systemctl start sshd.service sudo systemctl status sshd.service
+Указываем путь до директории для установки
+$ ./configure --prefix=${HOME_PREFIX}
 
-Скачиваем ngrok
+Устанавливаем
+$ make && make install
 
-https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+Перемещаемся  обратно в исходную папку
 
-распаковываем tar -xf имя
+$ cd..
 
-Регистрируемся через гитхаб на сайте https://dashboard.ngrok.com/get-started/setup
+Проделываем тоже самое с архивами ncurses и tmux. Для 1-ого:
 
-и connect к нашему аккаунту ngrok
+$ wget http://invisible-island.net/datafiles/release/ncurses.tar.gz
+$ tar -xvzf ncurses.tar.gz
+$ cd ncurses-6.3
+$ ./configure --prefix=${HOME_PREFIX}
+$ make && make install
+$ cd ..
+Для второго
+$ wget https://github.com/tmux/tmux/releases/download/2.5/tmux-2.5.tar.gz
+$ tar -xvzf tmux-2.5.tar.gz
+$ cd tmux-2.5
+$ ./configure --prefix=${HOME_PREFIX} CFLAGS="-I${HOME_PREFIX}/include -I${HOME_PREFIX}/include/ncurses" LDFLAGS="-L${HOME_PREFIX}/lib"
+$ make && make install
+$ cd ..
+Скачиваем архив ngrok и разархивируем его
+$ wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
+$ unizp ngrok-stable-linux-amd64.zip
+$ mv ngrok ${HOME_PREFIX}/bin
+Создаем переменные окружения и запускаем tmux
+$ export LD_LIBRARY_PATH=${HOME_PREFIX}/lib
+$ export PATH="${HOME_PREFIX}/bin:${PATH}"
+$ tmux
 
-./ngrok config add-authtoken 2OcF0CrQnFVBUVveMQLHfCvbkjN_2sGvrWKm3ToiSLVhztUoY
 
-Отедльно создадим папку, в ней создадим файл index.html
+Далее мы удаляем папки tmp и install.  И выполняем:
+$ brew install tmux ngrok
+Запускаем новую сессию в tmux
+$ tmux new -s session_with_group
+Далее на одном компьютере выполняем следущие действия:
+переходим на сайт для регистрации
+$ open https://ngrok.com/signup
+создаем переменную окружения
+$ export NGROK_TOKEN=<токен>
+авторизуемся в ngrok
+$ ngrok authtoken ${NGROK_TOKEN}
+ указываем тип протокола и порт подключения
+<порт_ngrok_сервера>
+$ ngrok tcp 22
 
-Отдельно откроем терминал, в котором будет крутиться наш веб сервер и пропишем туда
-
-python3 -m http.server
-
-Теперь перейдся по ссылке http://localhost:8000/ сможем увидеть написанное в index.html
-
-командной ./ngrok http 8000 запустим нгрок (скриншот)
-
-В скриншоте возьмем ссылку после слова forwarding
-
-https://a037-195-19-60-199.ngrok-free.app/
-
-и наш напарник с помощью этой ссылки сможет подключиться к нашему сайту.
-
-Теперь подключим его к моему терминалу.
-
-Вводим ./ngrok tcp 22
-
-и также отправляем ссылку после forwarding нашему напарнику
-
-tcp://5.tcp.eu.ngrok.io:13732
-
-Второй человек пишет ssh и эту ссылку,но вместо tcp:// ставит @.
+На втором компьютере :
+$ ssh ${USERNAME}@0.tcp.ngrok.io -p<порт_ngrok_сервера>
+<пароль_от_учетной_записи>
+подключаемся к созданной сессии
+$ tmux a -t session_with_group
+После этих действий мы обеспечили доступ с одного компьютера к другому.
